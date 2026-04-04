@@ -1,77 +1,93 @@
-import { useEffect, useRef, useState } from 'react'
-import { useChat } from '@ai-sdk/react'
-import type { UIMessage } from 'ai'
-import type { ChangeEvent } from 'react'
-import type { FormEvent } from 'react'
-import './App.css'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
+import type { ChangeEvent } from "react";
+import type { FormEvent } from "react";
+import { API_BASE_URL, chatEndpointFetch } from "./lib/api";
+import "./App.css";
 
-const USC_SSO_URL = 'https://my.usc.edu'
-const AUTH_STORAGE_KEY = 'usc-shibboleth-authenticated'
+const USC_SSO_URL = "https://my.usc.edu";
+const AUTH_STORAGE_KEY = "usc-shibboleth-authenticated";
 
-const quickActions = ['Code', 'Learn', 'Write', 'Life stuff', 'Surprise me']
+const quickActions = ["Code", "Learn", "Write", "Life stuff", "Surprise me"];
 const studentTasks = {
   new: [
-    'New Student Orientation',
-    'Housing Explorer',
-    'Building Finder / Map',
-    'Course Registration Guidance',
-    'International Student Support',
+    "New Student Orientation",
+    "Housing Explorer",
+    "Building Finder / Map",
+    "Course Registration Guidance",
+    "International Student Support",
   ],
   existing: [
-    'Library Study Rooms',
-    'Assignment Deadlines',
-    'Health Center Appointments',
+    "Library Study Rooms",
+    "Assignment Deadlines",
+    "Health Center Appointments",
   ],
-} as const
+} as const;
 
 const quickActionPrompts: Record<string, string> = {
-  Code: 'Help me write clean, production-ready code for this task.',
-  Learn: 'Teach me this topic step by step with a simple example.',
-  Write: 'Help me draft a polished message I can send as-is.',
-  'Life stuff': 'Give me a practical plan I can follow today.',
-  'Surprise me': 'Surprise me with one useful thing I can do right now.',
-}
+  Code: "Help me write clean, production-ready code for this task.",
+  Learn: "Teach me this topic step by step with a simple example.",
+  Write: "Help me draft a polished message I can send as-is.",
+  "Life stuff": "Give me a practical plan I can follow today.",
+  "Surprise me": "Surprise me with one useful thing I can do right now.",
+};
 
 const studentTaskPrompts: Record<string, string> = {
-  'New Student Orientation': 'Guide me through new student orientation essentials.',
-  'Housing Explorer': 'Help me compare housing options and choose the best fit.',
-  'Building Finder / Map': 'Help me find campus buildings quickly with directions.',
-  'Course Registration Guidance': 'Help me pick and register for courses this term.',
-  'International Student Support': 'Show me support resources for international students.',
-  'Library Study Rooms': 'Help me find and book a library study room.',
-  'Assignment Deadlines': 'Help me organize upcoming assignment deadlines.',
-  'Health Center Appointments': 'Help me book a health center appointment.',
-}
+  "New Student Orientation":
+    "Guide me through new student orientation essentials.",
+  "Housing Explorer":
+    "Help me compare housing options and choose the best fit.",
+  "Building Finder / Map":
+    "Help me find campus buildings quickly with directions.",
+  "Course Registration Guidance":
+    "Help me pick and register for courses this term.",
+  "International Student Support":
+    "Show me support resources for international students.",
+  "Library Study Rooms": "Help me find and book a library study room.",
+  "Assignment Deadlines": "Help me organize upcoming assignment deadlines.",
+  "Health Center Appointments": "Help me book a health center appointment.",
+};
 
 const publicIcons = [
-  '/Generated Image April 04, 2026 - 1_08PM.png',
-  '/Generated Image April 04, 2026 - 1_09PM (1).png',
-  '/Generated Image April 04, 2026 - 1_09PM (2).png',
-  '/Generated Image April 04, 2026 - 1_09PM.png',
-]
-const randomIconIndex = Math.floor(Math.random() * publicIcons.length)
-const selectedIcon = encodeURI(publicIcons[randomIconIndex])
+  "/Generated Image April 04, 2026 - 1_08PM.png",
+  "/Generated Image April 04, 2026 - 1_09PM (1).png",
+  "/Generated Image April 04, 2026 - 1_09PM (2).png",
+  "/Generated Image April 04, 2026 - 1_09PM.png",
+];
+const randomIconIndex = Math.floor(Math.random() * publicIcons.length);
+const selectedIcon = encodeURI(publicIcons[randomIconIndex]);
 
 const getMessageText = (message: UIMessage): string => {
   const text = message.parts
-    .filter((part) => part.type === 'text')
+    .filter((part) => part.type === "text")
     .map((part) => part.text)
-    .join('\n')
+    .join("\n")
+    .trim();
 
-  return text || '[non-text response]'
-}
+  return text || "";
+};
 
 function App() {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([])
-  const [userType, setUserType] = useState<'new' | 'existing' | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [userType, setUserType] = useState<"new" | "existing" | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem(AUTH_STORAGE_KEY) === 'true'
-  })
-  const [showAuthConfirm, setShowAuthConfirm] = useState(false)
-  const [showAuthRequired, setShowAuthRequired] = useState(false)
-  const [showAuthSuccess, setShowAuthSuccess] = useState(false)
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(AUTH_STORAGE_KEY) === "true";
+  });
+  const [showAuthConfirm, setShowAuthConfirm] = useState(false);
+  const [showAuthRequired, setShowAuthRequired] = useState(false);
+  const [showAuthSuccess, setShowAuthSuccess] = useState(false);
+
+  const userContext = useMemo(
+    () => ({
+      student_type: userType,
+      authenticated: isAuthenticated,
+    }),
+    [isAuthenticated, userType],
+  );
 
   const {
     messages,
@@ -81,86 +97,109 @@ function App() {
     handleInputChange,
     handleSubmit,
     setInput,
+    stop,
+    reload,
   } = useChat({
-    api: '/api/chat',
-  })
+    api: `${API_BASE_URL}/chat`,
+    streamProtocol: "text",
+    experimental_prepareRequestBody: ({ messages: uiMessages }) => ({
+      messages: uiMessages
+        .map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: getMessageText(message),
+        }))
+        .filter((message) => message.content.length > 0),
+      user_context: userContext,
+    }),
+    fetch: chatEndpointFetch,
+  });
 
   useEffect(() => {
-    if (!showAuthSuccess) return
+    if (!showAuthSuccess) return;
 
     const timer = window.setTimeout(() => {
-      setShowAuthSuccess(false)
-    }, 3200)
+      setShowAuthSuccess(false);
+    }, 3200);
 
-    return () => window.clearTimeout(timer)
-  }, [showAuthSuccess])
+    return () => window.clearTimeout(timer);
+  }, [showAuthSuccess]);
+
+  useEffect(() => {
+    endOfMessagesRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages, status]);
 
   const openAuthInNewTab = () => {
-    window.open(USC_SSO_URL, '_blank', 'noopener,noreferrer')
-    setShowAuthConfirm(true)
-  }
+    window.open(USC_SSO_URL, "_blank", "noopener,noreferrer");
+    setShowAuthConfirm(true);
+  };
 
   const confirmAuth = () => {
-    setIsAuthenticated(true)
-    localStorage.setItem(AUTH_STORAGE_KEY, 'true')
-    setShowAuthConfirm(false)
-    setShowAuthRequired(false)
-    setShowAuthSuccess(true)
-  }
+    setIsAuthenticated(true);
+    localStorage.setItem(AUTH_STORAGE_KEY, "true");
+    setShowAuthConfirm(false);
+    setShowAuthRequired(false);
+    setShowAuthSuccess(true);
+  };
 
   const handlePickFile = () => {
     if (!isAuthenticated) {
-      setShowAuthRequired(true)
-      return
+      setShowAuthRequired(true);
+      return;
     }
 
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
+    const files = event.target.files;
     if (!files || files.length === 0) {
-      setSelectedFiles([])
-      return
+      setSelectedFiles([]);
+      return;
     }
 
-    setSelectedFiles(Array.from(files).map((file) => file.name))
-  }
+    setSelectedFiles(Array.from(files).map((file) => file.name));
+  };
 
-  const hasHistory = messages.length > 0
-  const oneClickTasks = userType ? studentTasks[userType] : []
+  const hasHistory = messages.length > 0;
+  const oneClickTasks = userType ? studentTasks[userType] : [];
 
   const handlePromptSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
     if (!isAuthenticated) {
-      event.preventDefault()
-      setShowAuthRequired(true)
-      return
+      setShowAuthRequired(true);
+      return;
     }
 
-    handleSubmit(event)
-  }
+    handleSubmit(event);
+  };
 
   const handleQuickAction = (item: string) => {
     if (!isAuthenticated) {
-      setShowAuthRequired(true)
-      return
+      setShowAuthRequired(true);
+      return;
     }
 
-    setInput(quickActionPrompts[item] ?? `Help me with ${item}.`)
-  }
+    setInput(quickActionPrompts[item] ?? `Help me with ${item}.`);
+  };
 
   const handleStudentTask = (task: string) => {
     if (!isAuthenticated) {
-      setShowAuthRequired(true)
-      return
+      setShowAuthRequired(true);
+      return;
     }
 
-    setInput(studentTaskPrompts[task] ?? `Help me with ${task}.`)
-  }
+    setInput(studentTaskPrompts[task] ?? `Help me with ${task}.`);
+  };
 
   return (
     <div className="page-shell">
-      {showAuthSuccess && <p className="auth-toast">Authentication successful</p>}
+      {showAuthSuccess && (
+        <p className="auth-toast">Authentication successful</p>
+      )}
 
       {userType === null && (
         <div className="modal-backdrop" role="presentation">
@@ -173,10 +212,10 @@ function App() {
             <h2 id="user-type-title">Select Student Type</h2>
             <p>Are you a new student or an existing student?</p>
             <div className="modal-actions">
-              <button type="button" onClick={() => setUserType('new')}>
+              <button type="button" onClick={() => setUserType("new")}>
                 New Student
               </button>
-              <button type="button" onClick={() => setUserType('existing')}>
+              <button type="button" onClick={() => setUserType("existing")}>
                 Existing Student
               </button>
             </div>
@@ -194,8 +233,8 @@ function App() {
           >
             <h2 id="auth-confirm-title">Complete USC Sign In</h2>
             <p>
-              USC login opened in a new tab. After you finish sign in there, come back
-              and confirm below.
+              USC login opened in a new tab. After you finish sign in there,
+              come back and confirm below.
             </p>
             <div className="modal-actions">
               <button type="button" onClick={() => setShowAuthConfirm(false)}>
@@ -218,7 +257,10 @@ function App() {
             aria-labelledby="auth-required-title"
           >
             <h2 id="auth-required-title">Authentication Required</h2>
-            <p>Please authenticate with USC Shibboleth before using prompting features.</p>
+            <p>
+              Please authenticate with USC Shibboleth before using prompting
+              features.
+            </p>
             <div className="modal-actions">
               <button type="button" onClick={() => setShowAuthRequired(false)}>
                 Close
@@ -226,8 +268,8 @@ function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setShowAuthRequired(false)
-                  openAuthInNewTab()
+                  setShowAuthRequired(false);
+                  openAuthInNewTab();
                 }}
               >
                 Authenticate now
@@ -246,14 +288,29 @@ function App() {
 
       <main className="chat-stage">
         <header className="top-header">
-          <p className="brand">TrojanClaw</p>
+          <div>
+            <p className="brand">TrojanClaw</p>
+            <p className="brand-sub">USC AI Concierge</p>
+          </div>
           <div className="header-actions">
             <button
               type="button"
-              className={`auth-btn ${isAuthenticated ? 'authenticated' : ''}`}
+              className="refresh-btn"
+              onClick={() => void reload()}
+              disabled={
+                messages.length === 0 ||
+                status === "submitted" ||
+                status === "streaming"
+              }
+            >
+              Regenerate
+            </button>
+            <button
+              type="button"
+              className={`auth-btn ${isAuthenticated ? "authenticated" : ""}`}
               onClick={openAuthInNewTab}
             >
-              {isAuthenticated ? 'Authenticated' : 'Authenticate'}
+              {isAuthenticated ? "Authenticated" : "Authenticate"}
             </button>
             <div className="user-icon" aria-label="User profile" role="img">
               <span>A</span>
@@ -261,10 +318,14 @@ function App() {
           </div>
         </header>
 
-        <section className={`conversation ${hasHistory ? 'with-history' : ''}`}>
+        <section className={`conversation ${hasHistory ? "with-history" : ""}`}>
           {!hasHistory && (
             <h1 className="greeting">
-              <img className="greeting-icon" src={selectedIcon} alt="TrojanClaw icon" />
+              <img
+                className="greeting-icon"
+                src={selectedIcon}
+                alt="TrojanClaw icon"
+              />
               <span>TrojanClaw</span>
             </h1>
           )}
@@ -273,14 +334,27 @@ function App() {
             <div className="history" aria-live="polite">
               {messages.map((message) => (
                 <article key={message.id} className={`bubble ${message.role}`}>
+                  <div className="bubble-meta">
+                    {message.role === "user" ? "You" : "TrojanClaw"}
+                  </div>
                   <p>{getMessageText(message)}</p>
                 </article>
               ))}
+              {(status === "submitted" || status === "streaming") && (
+                <article className="bubble assistant loading">
+                  <div className="bubble-meta">TrojanClaw</div>
+                  <p>Thinking...</p>
+                </article>
+              )}
+              <div ref={endOfMessagesRef} />
             </div>
           )}
 
           {oneClickTasks.length > 0 && (
-            <div className="chip-row task-row" aria-label="One-click student tasks">
+            <div
+              className="chip-row task-row"
+              aria-label="One-click student tasks"
+            >
               {oneClickTasks.map((task) => (
                 <button
                   key={task}
@@ -315,8 +389,8 @@ function App() {
               rows={3}
               placeholder={
                 isAuthenticated
-                  ? 'How can I help you today?'
-                  : 'Authenticate with USC first to start prompting.'
+                  ? "How can I help you today?"
+                  : "Authenticate with USC first to start prompting."
               }
             />
 
@@ -336,17 +410,25 @@ function App() {
                 disabled={
                   !isAuthenticated ||
                   !input.trim() ||
-                  status === 'submitted' ||
-                  status === 'streaming'
+                  status === "submitted" ||
+                  status === "streaming"
                 }
               >
-                {status === 'submitted' || status === 'streaming' ? 'Sending...' : 'Send'}
+                {status === "submitted" || status === "streaming"
+                  ? "Sending..."
+                  : "Send"}
               </button>
+              {(status === "submitted" || status === "streaming") && (
+                <button type="button" className="stop-btn" onClick={stop}>
+                  Stop
+                </button>
+              )}
             </div>
 
             {selectedFiles.length > 0 && (
-              <p className="file-meta" title={selectedFiles.join(', ')}>
-                {selectedFiles.length} file(s) selected: {selectedFiles.join(', ')}
+              <p className="file-meta" title={selectedFiles.join(", ")}>
+                {selectedFiles.length} file(s) selected:{" "}
+                {selectedFiles.join(", ")}
               </p>
             )}
           </form>
@@ -371,11 +453,11 @@ function App() {
             </p>
           )}
 
-          {error && <p className="error-text">Unable to reach /api/chat right now.</p>}
+          {error && <p className="error-text">{error.message}</p>}
         </section>
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
