@@ -36,3 +36,4 @@ frontend/.eslintcache
 build/
 dist/
 *.egg-info/
+.docx
