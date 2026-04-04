@@ -1,8 +1,12 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from 'ai'
 import type { ChangeEvent } from 'react'
+import type { FormEvent } from 'react'
 import './App.css'
+
+const USC_SSO_URL = 'https://my.usc.edu'
+const AUTH_STORAGE_KEY = 'usc-shibboleth-authenticated'
 
 const quickActions = ['Code', 'Learn', 'Write', 'Life stuff', 'Surprise me']
 const studentTasks = {
@@ -61,6 +65,13 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
   const [userType, setUserType] = useState<'new' | 'existing' | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem(AUTH_STORAGE_KEY) === 'true'
+  })
+  const [showAuthConfirm, setShowAuthConfirm] = useState(false)
+  const [showAuthRequired, setShowAuthRequired] = useState(false)
+  const [showAuthSuccess, setShowAuthSuccess] = useState(false)
 
   const {
     messages,
@@ -74,7 +85,35 @@ function App() {
     api: '/api/chat',
   })
 
+  useEffect(() => {
+    if (!showAuthSuccess) return
+
+    const timer = window.setTimeout(() => {
+      setShowAuthSuccess(false)
+    }, 3200)
+
+    return () => window.clearTimeout(timer)
+  }, [showAuthSuccess])
+
+  const openAuthInNewTab = () => {
+    window.open(USC_SSO_URL, '_blank', 'noopener,noreferrer')
+    setShowAuthConfirm(true)
+  }
+
+  const confirmAuth = () => {
+    setIsAuthenticated(true)
+    localStorage.setItem(AUTH_STORAGE_KEY, 'true')
+    setShowAuthConfirm(false)
+    setShowAuthRequired(false)
+    setShowAuthSuccess(true)
+  }
+
   const handlePickFile = () => {
+    if (!isAuthenticated) {
+      setShowAuthRequired(true)
+      return
+    }
+
     fileInputRef.current?.click()
   }
 
@@ -91,8 +130,38 @@ function App() {
   const hasHistory = messages.length > 0
   const oneClickTasks = userType ? studentTasks[userType] : []
 
+  const handlePromptSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (!isAuthenticated) {
+      event.preventDefault()
+      setShowAuthRequired(true)
+      return
+    }
+
+    handleSubmit(event)
+  }
+
+  const handleQuickAction = (item: string) => {
+    if (!isAuthenticated) {
+      setShowAuthRequired(true)
+      return
+    }
+
+    setInput(quickActionPrompts[item] ?? `Help me with ${item}.`)
+  }
+
+  const handleStudentTask = (task: string) => {
+    if (!isAuthenticated) {
+      setShowAuthRequired(true)
+      return
+    }
+
+    setInput(studentTaskPrompts[task] ?? `Help me with ${task}.`)
+  }
+
   return (
     <div className="page-shell">
+      {showAuthSuccess && <p className="auth-toast">Authentication successful</p>}
+
       {userType === null && (
         <div className="modal-backdrop" role="presentation">
           <section
@@ -115,6 +184,59 @@ function App() {
         </div>
       )}
 
+      {showAuthConfirm && (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="user-type-modal auth-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-confirm-title"
+          >
+            <h2 id="auth-confirm-title">Complete USC Sign In</h2>
+            <p>
+              USC login opened in a new tab. After you finish sign in there, come back
+              and confirm below.
+            </p>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowAuthConfirm(false)}>
+                Not yet
+              </button>
+              <button type="button" onClick={confirmAuth}>
+                I have authenticated
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showAuthRequired && (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="user-type-modal auth-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-required-title"
+          >
+            <h2 id="auth-required-title">Authentication Required</h2>
+            <p>Please authenticate with USC Shibboleth before using prompting features.</p>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowAuthRequired(false)}>
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAuthRequired(false)
+                  openAuthInNewTab()
+                }}
+              >
+                Authenticate now
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
       <aside className="rail" aria-hidden="true">
         <button type="button" className="rail-item active" />
         <button type="button" className="rail-item" />
@@ -126,8 +248,12 @@ function App() {
         <header className="top-header">
           <p className="brand">TrojanClaw</p>
           <div className="header-actions">
-            <button type="button" className="auth-btn">
-              Authenticate
+            <button
+              type="button"
+              className={`auth-btn ${isAuthenticated ? 'authenticated' : ''}`}
+              onClick={openAuthInNewTab}
+            >
+              {isAuthenticated ? 'Authenticated' : 'Authenticate'}
             </button>
             <div className="user-icon" aria-label="User profile" role="img">
               <span>A</span>
@@ -160,7 +286,8 @@ function App() {
                   key={task}
                   type="button"
                   className="chip"
-                  onClick={() => setInput(studentTaskPrompts[task] ?? `Help me with ${task}.`)}
+                  onClick={() => handleStudentTask(task)}
+                  disabled={!isAuthenticated}
                 >
                   {task}
                 </button>
@@ -168,7 +295,7 @@ function App() {
             </div>
           )}
 
-          <form className="prompt-card" onSubmit={handleSubmit}>
+          <form className="prompt-card" onSubmit={handlePromptSubmit}>
             <input
               ref={fileInputRef}
               className="file-input"
@@ -184,8 +311,13 @@ function App() {
               id="prompt"
               value={input}
               onChange={handleInputChange}
+              disabled={!isAuthenticated}
               rows={3}
-              placeholder="How can I help you today?"
+              placeholder={
+                isAuthenticated
+                  ? 'How can I help you today?'
+                  : 'Authenticate with USC first to start prompting.'
+              }
             />
 
             <div className="prompt-bottom">
@@ -194,13 +326,19 @@ function App() {
                 className="plus-btn"
                 aria-label="Add attachment"
                 onClick={handlePickFile}
+                disabled={!isAuthenticated}
               >
                 +
               </button>
               <button
                 type="submit"
                 className="send-btn"
-                disabled={!input.trim() || status === 'submitted' || status === 'streaming'}
+                disabled={
+                  !isAuthenticated ||
+                  !input.trim() ||
+                  status === 'submitted' ||
+                  status === 'streaming'
+                }
               >
                 {status === 'submitted' || status === 'streaming' ? 'Sending...' : 'Send'}
               </button>
@@ -219,12 +357,19 @@ function App() {
                 key={item}
                 type="button"
                 className="chip"
-                onClick={() => setInput(quickActionPrompts[item] ?? `Help me with ${item}.`)}
+                onClick={() => handleQuickAction(item)}
+                disabled={!isAuthenticated}
               >
                 {item}
               </button>
             ))}
           </div>
+
+          {!isAuthenticated && (
+            <p className="auth-hint">
+              USC authentication is required before any prompting.
+            </p>
+          )}
 
           {error && <p className="error-text">Unable to reach /api/chat right now.</p>}
         </section>
