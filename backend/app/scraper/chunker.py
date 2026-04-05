@@ -62,6 +62,7 @@ def chunk_text(text: str, metadata: dict, chunk_size: int = 400, overlap: int = 
     
     step = max(1, chunk_size - overlap)
     
+    chunk_index = 0
     for i in range(0, len(words), step):
         chunk_words = words[i:i + chunk_size]
         chunk_body = " ".join(chunk_words)
@@ -73,8 +74,10 @@ def chunk_text(text: str, metadata: dict, chunk_size: int = 400, overlap: int = 
             "source_url": source_url,
             "page_title": page_title,
             "data_type": data_type,
-            "campus": campus
+            "campus": campus,
+            "chunk_index": chunk_index,
         })
+        chunk_index += 1
         
         # If we reached the end of the text, construct final chunk and break
         if i + chunk_size >= len(words):

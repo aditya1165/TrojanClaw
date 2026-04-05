@@ -8,6 +8,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from app.scraper.usc_pages import USC_PAGES
 from app.scraper.chunker import fetch_html, clean_html, chunk_text
+from app.scraper.piazza_ingest import sync_piazza_course_documents
+from app.scraper.db_schema import ensure_documents_schema
 import psycopg2
 
 load_dotenv()
@@ -33,6 +35,9 @@ def run_scraper_pipeline():
     print("Connecting to Postgres database...")
     conn = psycopg2.connect(supabase_url)
     cur = conn.cursor()
+
+    ensure_documents_schema(cur)
+    conn.commit()
 
     
     total_inserted = 0
@@ -72,16 +77,34 @@ def run_scraper_pipeline():
                 
                 cur.execute(
                     """
-                    INSERT INTO documents (source_url, page_title, data_type, campus, chunk_text, embedding)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO documents (
+                        source_url,
+                        page_title,
+                        data_type,
+                        campus,
+                        chunk_text,
+                        embedding,
+                        chunk_index,
+                        last_scraped
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (source_url, chunk_index)
+                    DO UPDATE SET
+                        page_title = EXCLUDED.page_title,
+                        data_type = EXCLUDED.data_type,
+                        campus = EXCLUDED.campus,
+                        chunk_text = EXCLUDED.chunk_text,
+                        embedding = EXCLUDED.embedding,
+                        last_scraped = NOW()
                     """,
                     (
-                        chunk_data["source_url"], 
-                        chunk_data["page_title"], 
-                        chunk_data["data_type"], 
-                        chunk_data["campus"], 
-                        chunk_data["chunk_text"], 
-                        vec_str
+                        chunk_data["source_url"],
+                        chunk_data["page_title"],
+                        chunk_data["data_type"],
+                        chunk_data["campus"],
+                        chunk_data["chunk_text"],
+                        vec_str,
+                        chunk_data.get("chunk_index", idx),
                     )
                 )
                 conn.commit()
@@ -93,6 +116,18 @@ def run_scraper_pipeline():
                 
     cur.close()
     conn.close()
+
+    # 4. Optional Piazza ingestion
+    include_piazza = os.getenv("INGEST_PIAZZA", "false").lower() in {"1", "true", "yes"}
+    piazza_course = os.getenv("DEFAULT_COURSE_ID", "").strip() or None
+    if include_piazza:
+        try:
+            piazza_inserted = sync_piazza_course_documents(course_id=piazza_course, max_posts=250)
+            print(f"Piazza ingestion complete. Inserted chunks: {piazza_inserted}")
+            total_inserted += piazza_inserted
+        except Exception as exc:
+            print(f"Piazza ingestion failed: {exc}")
+
     print(f"\nPipeline finished. Total chunks inserted: {total_inserted}")
 
 if __name__ == "__main__":

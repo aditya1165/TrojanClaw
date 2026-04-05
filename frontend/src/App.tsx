@@ -8,6 +8,7 @@ import "./App.css";
 
 const USC_SSO_URL = "https://my.usc.edu";
 const AUTH_STORAGE_KEY = "usc-shibboleth-authenticated";
+const COURSE_STORAGE_KEY = "trojanclaw-course-id";
 
 const quickActions = ["Code", "Learn", "Write", "Life stuff", "Surprise me"];
 const studentTasks = {
@@ -73,6 +74,10 @@ function App() {
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [userType, setUserType] = useState<"new" | "existing" | null>(null);
+  const [courseId, setCourseId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(COURSE_STORAGE_KEY) ?? "";
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(AUTH_STORAGE_KEY) === "true";
@@ -85,9 +90,18 @@ function App() {
     () => ({
       student_type: userType,
       authenticated: isAuthenticated,
+      course_id: courseId.trim() || null,
     }),
-    [isAuthenticated, userType],
+    [courseId, isAuthenticated, userType],
   );
+
+  useEffect(() => {
+    if (courseId.trim()) {
+      localStorage.setItem(COURSE_STORAGE_KEY, courseId.trim());
+    } else {
+      localStorage.removeItem(COURSE_STORAGE_KEY);
+    }
+  }, [courseId]);
 
   const {
     messages,
@@ -293,6 +307,14 @@ function App() {
             <p className="brand-sub">USC AI Concierge</p>
           </div>
           <div className="header-actions">
+            <input
+              type="text"
+              className="course-input"
+              value={courseId}
+              onChange={(event) => setCourseId(event.target.value)}
+              placeholder="Course ID (e.g. CSCI-570)"
+              aria-label="Course ID"
+            />
             <button
               type="button"
               className="refresh-btn"

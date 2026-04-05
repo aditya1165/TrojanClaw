@@ -98,6 +98,21 @@
   gap: 10px;
 }
 
+.course-input {
+  width: 210px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #464646;
+  background: #262626;
+  color: #d8d2c7;
+  padding: 0 10px;
+  font-size: 0.87rem;
+}
+
+.course-input::placeholder {
+  color: #9d978d;
+}
+
 .auth-btn,
 .refresh-btn,
 .stop-btn {
@@ -465,6 +480,10 @@
 
   .top-header {
     margin-bottom: 10px;
+  }
+
+  .course-input {
+    width: 150px;
   }
 
   .header-actions {
