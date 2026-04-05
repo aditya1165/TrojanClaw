@@ -3,6 +3,7 @@ import re
 import psycopg2
 from pathlib import Path
 from dotenv import load_dotenv
+import re
 
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -32,8 +33,9 @@ def _infer_data_types(query_text: str) -> list[str]:
         inferred.add("health")
     if any(k in q for k in ["housing", "dorm", "residence", "apartment"]):
         inferred.add("housing")
-    if any(k in q for k in ["piazza", "lecture", "assignment", "homework", "syllabus", "course staff", "grader", "ta", "professor"]):
-        inferred.add("piazza_course")
+    # Using 'dealin' captures common typos like dealines or deadline
+    if any(k in q for k in ["deadline", "dealin", "due", "assignment", "homework", "project", "midterm", "final", "test", "exam"]):
+        inferred.add("deadline")
 
     return list(inferred)
 
@@ -247,8 +249,12 @@ def retrieve_context(
         results = []
         for item in reranked:
             source = item.get("source_url") or "unknown"
-            if per_source_count.get(source, 0) >= 2:
-                continue
+            data_type = item.get("data_type")
+            
+            # Deadlines should not be arbitrarily limited, let them all through!
+            if data_type != "deadline":
+                if per_source_count.get(source, 0) >= 2:
+                    continue
 
             per_source_count[source] = per_source_count.get(source, 0) + 1
             item.pop("_score", None)
