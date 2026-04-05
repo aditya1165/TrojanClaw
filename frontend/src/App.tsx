@@ -3,6 +3,8 @@ import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import type { ChangeEvent } from "react";
 import type { FormEvent } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { API_BASE_URL, chatEndpointFetch } from "./lib/api";
 import "./App.css";
 
@@ -165,6 +167,7 @@ function App() {
 
   const hasHistory = messages.length > 0;
   const oneClickTasks = userType ? studentTasks[userType] : [];
+  const isLoading = status === "submitted" || status === "streaming";
 
   const handlePromptSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -279,29 +282,15 @@ function App() {
         </div>
       )}
 
-      <aside className="rail" aria-hidden="true">
-        <button type="button" className="rail-item active" />
-        <button type="button" className="rail-item" />
-        <button type="button" className="rail-item" />
-        <button type="button" className="rail-item" />
-      </aside>
-
       <main className="chat-stage">
         <header className="top-header">
-          <div>
-            <p className="brand">TrojanClaw</p>
-            <p className="brand-sub">USC AI Concierge</p>
-          </div>
+          <div />
           <div className="header-actions">
             <button
               type="button"
               className="refresh-btn"
               onClick={() => void reload()}
-              disabled={
-                messages.length === 0 ||
-                status === "submitted" ||
-                status === "streaming"
-              }
+              disabled={messages.length === 0 || isLoading}
             >
               Regenerate
             </button>
@@ -318,16 +307,30 @@ function App() {
           </div>
         </header>
 
-        <section className={`conversation ${hasHistory ? "with-history" : ""}`}>
+        <section
+          className={`conversation ${hasHistory ? "with-history" : ""}`}
+          aria-busy={isLoading}
+        >
           {!hasHistory && (
-            <h1 className="greeting">
+            <div className="hero-branding">
               <img
-                className="greeting-icon"
+                className="hero-logo"
                 src={selectedIcon}
-                alt="TrojanClaw icon"
+                alt="TrojanClaw logo"
               />
-              <span>TrojanClaw</span>
-            </h1>
+              <h1 className="hero-title">TrojanClaw</h1>
+              <p className="hero-subtitle">USC AI Concierge</p>
+              <p className="hero-description">
+                Ask about schedules, campus resources, study spaces, and student
+                life in one place.
+              </p>
+              {isLoading && (
+                <div className="hero-skeletons" aria-hidden="true">
+                  <div className="skeleton skeleton-pill" />
+                  <div className="skeleton skeleton-pill short" />
+                </div>
+              )}
+            </div>
           )}
 
           {hasHistory && (
@@ -337,13 +340,22 @@ function App() {
                   <div className="bubble-meta">
                     {message.role === "user" ? "You" : "TrojanClaw"}
                   </div>
-                  <p>{getMessageText(message)}</p>
+                  {message.role === "assistant" ? (
+                    <div className="markdown-body">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {getMessageText(message)}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p>{getMessageText(message)}</p>
+                  )}
                 </article>
               ))}
-              {(status === "submitted" || status === "streaming") && (
+              {isLoading && (
                 <article className="bubble assistant loading">
                   <div className="bubble-meta">TrojanClaw</div>
-                  <p>Thinking...</p>
+                  <div className="skeleton skeleton-line" />
+                  <div className="skeleton skeleton-line short" />
                 </article>
               )}
               <div ref={endOfMessagesRef} />
@@ -407,18 +419,11 @@ function App() {
               <button
                 type="submit"
                 className="send-btn"
-                disabled={
-                  !isAuthenticated ||
-                  !input.trim() ||
-                  status === "submitted" ||
-                  status === "streaming"
-                }
+                disabled={!isAuthenticated || !input.trim() || isLoading}
               >
-                {status === "submitted" || status === "streaming"
-                  ? "Sending..."
-                  : "Send"}
+                {isLoading ? "Sending..." : "Send"}
               </button>
-              {(status === "submitted" || status === "streaming") && (
+              {isLoading && (
                 <button type="button" className="stop-btn" onClick={stop}>
                   Stop
                 </button>
@@ -450,6 +455,12 @@ function App() {
           {!isAuthenticated && (
             <p className="auth-hint">
               USC authentication is required before any prompting.
+            </p>
+          )}
+
+          {isLoading && (
+            <p className="loading-indicator" role="status" aria-live="polite">
+              TrojanClaw is searching USC sources...
             </p>
           )}
 
