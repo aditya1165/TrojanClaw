@@ -12,7 +12,7 @@ from app.rag.prompt import build_system_prompt
 from app.scraper.piazza_ingest import sync_piazza_course_documents
 
 from app.tools.definitions import CLAUDE_TOOLS
-from app.tools.handlers import execute_browser_booking, execute_browser_dining_menu
+from app.tools.handlers import execute_browser_booking, execute_browser_dining_menu, execute_fetch_live_dining_menu, execute_browser_google_search
 
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -149,11 +149,17 @@ def chat_endpoint(request: ChatRequest):
                 date = tool_use_block.input.get("date")
                 tool_output = execute_browser_booking(location=location, date=date)
             elif tool_use_block and tool_use_block.name == "open_dining_menu":
-                url = tool_use_block.input.get("url")
-                tool_output = execute_browser_dining_menu(url=url)
+                restaurant_name = tool_use_block.input.get("restaurant_name")
+                tool_output = execute_browser_dining_menu(restaurant_name=restaurant_name)
+            elif tool_use_block and tool_use_block.name == "fetch_live_dining_menu":
+                venue = tool_use_block.input.get("venue", "evk")
+                tool_output = execute_fetch_live_dining_menu(venue=venue)
+            elif tool_use_block and tool_use_block.name == "browser_google_search":
+                query = tool_use_block.input.get("query")
+                tool_output = execute_browser_google_search(query=query)
             
             # If a tool was triggered, append it to context and prompt Claude again!
-            if tool_use_block and tool_use_block.name in ["book_study_room", "open_dining_menu"]:
+            if tool_use_block and tool_use_block.name in ["book_study_room", "open_dining_menu", "fetch_live_dining_menu", "browser_google_search"]:
                 # Append context for final generation
                 api_messages.append({"role": "assistant", "content": response.content})
                 api_messages.append({

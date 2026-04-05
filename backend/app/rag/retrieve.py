@@ -37,7 +37,7 @@ def _infer_data_types(query_text: str) -> list[str]:
     if any(k in q for k in ["deadline", "dealin", "due", "assignment", "homework", "project", "midterm", "final", "test", "exam"]):
         inferred.add("deadline")
         
-    if any(k in q for k in ["dining", "food", "hungry", "eat", "lunch", "dinner", "breakfast", "restaurant", "cafe", "chinese", "mexican", "salad", "coffee", "boba"]):
+    if any(k in q for k in ["dining", "food", "hungry", "eat", "lunch", "dinner", "breakfast", "restaurant", "cafe", "chinese", "mexican", "salad", "coffee", "boba", "italian", "indian", "japanese", "vegan", "vegetarian", "pizza", "pasta", "halal", "cuisine"]):
         inferred.add("dining")
 
     return list(inferred)

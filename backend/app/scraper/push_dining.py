@@ -11,15 +11,15 @@ load_dotenv()
 MANUAL_DINING = [
     {
         "name": "Panda Express",
-        "category": "Chinese, Fast Food, Asian",
+        "category": "Chinese, Fast Food, Asian, Rice, Noodles",
         "location": "Tutor Campus Center (TCC)",
         "hours": "Mon-Fri 10AM - 8PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/panda-express/",
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
         "description": "Popular fast-casual Chinese food offering Orange Chicken, Chow Mein, and more."
     },
     {
         "name": "Cava",
-        "category": "Mediterranean, Healthy, Salad, Bowls",
+        "category": "Mediterranean, Healthy, Salad, Bowls, Vegan, Vegetarian, Halal options",
         "location": "USC Village",
         "hours": "Mon-Sun 10:45AM - 10PM",
         "menu_url": "https://cava.com/menu",
@@ -27,31 +27,31 @@ MANUAL_DINING = [
     },
     {
         "name": "Seeds Marketplace",
-        "category": "Salad, Sandwiches, Healthy, Coffee, Snacks",
+        "category": "Salad, Sandwiches, Healthy, Coffee, Snacks, Breakfast",
         "location": "Tutor Campus Center (TCC)",
         "hours": "Mon-Fri 7AM - 10PM, Weekends 9AM - 8PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/seeds-marketplace/",
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
         "description": "Premium salads, pre-made sandwiches, fresh fruit, coffee, and grab-and-go campus snacks."
     },
     {
         "name": "Everybody's Kitchen (EVK)",
-        "category": "Dining Hall, Buffet, All You Can Eat, Breakfast",
+        "category": "Dining Hall, Buffet, All You Can Eat, Breakfast, Indian options, Pizza",
         "location": "Near Birnkrant Residential College",
         "hours": "Mon-Sun 7AM - 10PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/everybodys-kitchen/",
-        "description": "Classic all-you-can-eat residential dining hall known for breakfast, waffles, and homestyle dinners."
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
+        "description": "Classic all-you-can-eat residential dining hall known for breakfast, waffles, homestyle dinners, and rotating Indian curries."
     },
     {
         "name": "USC Village Dining Hall",
-        "category": "Dining Hall, Buffet, Healthy, Vegan options",
+        "category": "Dining Hall, Buffet, Healthy, Vegan options, Vegetarian, Halal, Global Cuisine",
         "location": "USC Village (McCarthy Honors College)",
         "hours": "Mon-Sun 7AM - 10PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/usc-village-dining-hall/",
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
         "description": "State of the art dining hall with flexitarian, vegan, and global cuisine stations."
     },
     {
         "name": "Cafe Dulce",
-        "category": "Coffee, Bakery, Cafe, Breakfast, Matcha",
+        "category": "Coffee, Bakery, Cafe, Breakfast, Matcha, Pastries",
         "location": "USC Village",
         "hours": "Mon-Sun 8AM - 8PM",
         "menu_url": "https://cafedulce.co/",
@@ -70,24 +70,32 @@ MANUAL_DINING = [
         "category": "Mexican, Tacos, Burritos, Fast Casual",
         "location": "Tutor Campus Center (TCC)",
         "hours": "Mon-Fri 11AM - 7PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/verde/",
-        "description": "Build-our-own Mexican food including burritos, bowls, tacos, and nachos."
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
+        "description": "Build-your-own Mexican food including burritos, bowls, tacos, and nachos."
     },
     {
-        "name": "Little Galen",
-        "category": "Dining Hall, Quiet, Lunch",
-        "location": "Athletics Village / Heritage Hall",
-        "hours": "Mon-Fri 11AM - 2PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/little-galen/",
-        "description": "Hidden gem dining hall usually serving athletes but open to all students for lunch."
+        "name": "Parkside Restaurant & Grill",
+        "category": "Dining Hall, Italian, Pasta, Asian, Global, Vegan",
+        "location": "Parkside Arts & Humanities",
+        "hours": "Mon-Sun 7AM - 10PM",
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
+        "description": "All you can eat dining hall heavily focused on fresh Italian food, made-to-order Pasta, Pizza, and hot Asian pho."
     },
     {
-        "name": "Law School Cafe",
-        "category": "Coffee, Sandwiches, Quiet, Cafe",
-        "location": "Gould School of Law",
-        "hours": "Mon-Fri 8AM - 5PM",
-        "menu_url": "https://hospitality.usc.edu/dining_locations/law-school-cafe/",
-        "description": "Upscale quiet cafe serving premium coffee, salads, and artisan sandwiches."
+        "name": "Rosso Oro's Pizzeria",
+        "category": "Italian, Pizza, Pasta, Salads",
+        "location": "USC Gateway (Figueroa St)",
+        "hours": "Mon-Fri 11AM - 9PM",
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
+        "description": "Authentic New York style pizza, Italian pastas, and fresh salads."
+    },
+    {
+        "name": "Tutor Campus Center (TCC) - Fresh Foods Island",
+        "category": "Indian, Curry, Japanese, Sushi",
+        "location": "Tutor Campus Center (TCC)",
+        "hours": "Mon-Fri 11AM - 3PM",
+        "menu_url": "https://hospitality.usc.edu/residential-dining-menus/",
+        "description": "Fresh Indian curries, Tikka Masala, Samosas, and fresh rolled Japanese Sushi."
     }
 ]
 
@@ -138,7 +146,7 @@ def push_manual_dining_to_db():
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    f"manual-dining-{idx}", 
+                    f"manual-dining-v3-{idx}", 
                     f"Dining: {item['name']}", 
                     "dining", 
                     "USC", 

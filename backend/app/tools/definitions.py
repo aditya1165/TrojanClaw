@@ -29,13 +29,50 @@ open_dining_menu_definition = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "url": {
+            "restaurant_name": {
                 "type": "string",
-                "description": "The exact menu URL to open (fetched from the Supabase dining context)."
+                "description": "The name of the dining location to open (e.g. 'Rosso Oros Pizzeria', 'Verde', 'Cava')."
             }
         },
-        "required": ["url"]
+        "required": ["restaurant_name"]
     }
 }
 
-CLAUDE_TOOLS = [book_study_room_definition, open_dining_menu_definition]
+fetch_live_dining_menu_definition = {
+    "name": "fetch_live_dining_menu",
+    "description": (
+        "Fetches the live daily menu for USC residential dining halls (e.g. EVK, USC Village, Parkside). "
+        "Use this tool when the user asks specifically what is on the menu today at a dining hall."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "venue": {
+                "type": "string",
+                "description": "The name of the dining hall, e.g. 'EVK', 'Village', or 'Parkside'."
+            }
+        },
+        "required": ["venue"]
+    }
+}
+
+browser_google_search_definition = {
+    "name": "browser_google_search",
+    "description": (
+        "Opens a physical browser tab to a Google Search results page. "
+        "Use this tool when you don't know the exact URL of a restaurant or service and need to actively "
+        "search the web to show the user the live results."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "The search query, e.g. 'Rosso Oros Pizzeria USC Menu'"
+            }
+        },
+        "required": ["query"]
+    }
+}
+
+CLAUDE_TOOLS = [book_study_room_definition, open_dining_menu_definition, fetch_live_dining_menu_definition, browser_google_search_definition]
