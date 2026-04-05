@@ -36,6 +36,9 @@ def _infer_data_types(query_text: str) -> list[str]:
     # Using 'dealin' captures common typos like dealines or deadline
     if any(k in q for k in ["deadline", "dealin", "due", "assignment", "homework", "project", "midterm", "final", "test", "exam"]):
         inferred.add("deadline")
+        
+    if any(k in q for k in ["dining", "food", "hungry", "eat", "lunch", "dinner", "breakfast", "restaurant", "cafe", "chinese", "mexican", "salad", "coffee", "boba"]):
+        inferred.add("dining")
 
     return list(inferred)
 
@@ -251,8 +254,8 @@ def retrieve_context(
             source = item.get("source_url") or "unknown"
             data_type = item.get("data_type")
             
-            # Deadlines should not be arbitrarily limited, let them all through!
-            if data_type != "deadline":
+            # Deadlines and Dining should not be arbitrarily limited, let them all through!
+            if data_type not in ["deadline", "dining"]:
                 if per_source_count.get(source, 0) >= 2:
                     continue
 

@@ -76,3 +76,26 @@ def execute_browser_booking(location: str, date: str) -> str:
         error_msg = f"Failed to connect to local browser via CDP: {e}"
         logging.error(error_msg)
         return error_msg
+
+def execute_browser_dining_menu(url: str) -> str:
+    """
+    Connects to the locally running Chrome instance via CDP and opens a new tab directed at the specific dining menu URL.
+    """
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            default_context = browser.contexts[0]
+            
+            # Open a fresh tab for the menu
+            page = default_context.new_page()
+            logging.info(f"Opening physical browser tab for dining menu at {url}...")
+            
+            page.goto(url)
+            page.wait_for_load_state("networkidle", timeout=3000)
+            
+            return f"Successfully opened physical browser tab to {url}. Tell the user you've opened the menu for them to look over!"
+
+    except Exception as e:
+        error_msg = f"Failed to open dining menu in browser: {e}"
+        logging.error(error_msg)
+        return error_msg

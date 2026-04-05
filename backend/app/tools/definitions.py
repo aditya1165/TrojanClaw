@@ -20,4 +20,22 @@ book_study_room_definition = {
     }
 }
 
-CLAUDE_TOOLS = [book_study_room_definition]
+open_dining_menu_definition = {
+    "name": "open_dining_menu",
+    "description": (
+        "Opens a physical browser tab to the specific menu URL of a dining location. "
+        "Use this tool when a user asks about a dining location and you want to show them the full menu or food options."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "description": "The exact menu URL to open (fetched from the Supabase dining context)."
+            }
+        },
+        "required": ["url"]
+    }
+}
+
+CLAUDE_TOOLS = [book_study_room_definition, open_dining_menu_definition]
