@@ -3,6 +3,7 @@ import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import type { ChangeEvent } from "react";
 import type { FormEvent } from "react";
+import type { KeyboardEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { API_BASE_URL, chatEndpointFetch } from "./lib/api";
@@ -10,9 +11,22 @@ import "./App.css";
 
 const USC_SSO_URL = "https://my.usc.edu";
 const AUTH_STORAGE_KEY = "usc-shibboleth-authenticated";
-const COURSE_STORAGE_KEY = "trojanclaw-course-id";
 
-const quickActions = ["Code", "Learn", "Write", "Life stuff", "Surprise me"];
+const uscSchools = [
+  "Dornsife College of Letters, Arts and Sciences",
+  "Viterbi School of Engineering",
+  "Marshall School of Business",
+  "Annenberg School for Communication and Journalism",
+  "School of Cinematic Arts",
+  "Keck School of Medicine",
+  "Price School of Public Policy",
+  "Rossier School of Education",
+  "Gould School of Law",
+  "Other",
+] as const;
+
+// const quickActions = ["Code", "Learn", "Write", "Life stuff", "Surprise me"];
+const quickActions: string[] = [];
 const studentTasks = {
   new: [
     "New Student Orientation",
@@ -76,10 +90,14 @@ function App() {
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [userType, setUserType] = useState<"new" | "existing" | null>(null);
-  const [courseId, setCourseId] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem(COURSE_STORAGE_KEY) ?? "";
-  });
+  const [uscSchool, setUscSchool] = useState("");
+  const [coursesInput, setCoursesInput] = useState("");
+  const [draftUserType, setDraftUserType] = useState<"new" | "existing" | null>(
+    null,
+  );
+  const [draftUscSchool, setDraftUscSchool] = useState("");
+  const [draftCoursesInput, setDraftCoursesInput] = useState("");
+  const [showProfileModal, setShowProfileModal] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(AUTH_STORAGE_KEY) === "true";
@@ -88,22 +106,28 @@ function App() {
   const [showAuthRequired, setShowAuthRequired] = useState(false);
   const [showAuthSuccess, setShowAuthSuccess] = useState(false);
 
+  const enrolledCourses = useMemo(
+    () =>
+      coursesInput
+        .split(",")
+        .map((course) => course.trim())
+        .filter(Boolean),
+    [coursesInput],
+  );
+
   const userContext = useMemo(
     () => ({
       student_type: userType,
       authenticated: isAuthenticated,
-      course_id: courseId.trim() || null,
+      school: uscSchool.trim() || null,
+      enrolled_courses: enrolledCourses,
+      course_id: enrolledCourses[0] ?? null,
+      // Backward-compatible keys expected in existing backend flow.
+      usc_school: uscSchool.trim() || null,
+      courses: enrolledCourses,
     }),
-    [courseId, isAuthenticated, userType],
+    [enrolledCourses, isAuthenticated, uscSchool, userType],
   );
-
-  useEffect(() => {
-    if (courseId.trim()) {
-      localStorage.setItem(COURSE_STORAGE_KEY, courseId.trim());
-    } else {
-      localStorage.removeItem(COURSE_STORAGE_KEY);
-    }
-  }, [courseId]);
 
   const {
     messages,
@@ -182,6 +206,28 @@ function App() {
   const hasHistory = messages.length > 0;
   const oneClickTasks = userType ? studentTasks[userType] : [];
   const isLoading = status === "submitted" || status === "streaming";
+  const isDraftProfileComplete =
+    draftUserType !== null &&
+    draftUscSchool.trim().length > 0 &&
+    draftCoursesInput.trim().length > 0;
+
+  const saveProfile = () => {
+    if (!isDraftProfileComplete) {
+      return;
+    }
+
+    setUserType(draftUserType);
+    setUscSchool(draftUscSchool.trim());
+    setCoursesInput(draftCoursesInput.trim());
+    setShowProfileModal(false);
+  };
+
+  const openProfileEditor = () => {
+    setDraftUserType(userType);
+    setDraftUscSchool(uscSchool);
+    setDraftCoursesInput(coursesInput);
+    setShowProfileModal(true);
+  };
 
   const handlePromptSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -192,6 +238,29 @@ function App() {
     }
 
     handleSubmit(event);
+  };
+
+  const handlePromptKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (!isAuthenticated) {
+      setShowAuthRequired(true);
+      return;
+    }
+
+    if (!input.trim() || isLoading) {
+      return;
+    }
+
+    handleSubmit();
   };
 
   const handleQuickAction = (item: string) => {
@@ -218,7 +287,7 @@ function App() {
         <p className="auth-toast">Authentication successful</p>
       )}
 
-      {userType === null && (
+      {showProfileModal && (
         <div className="modal-backdrop" role="presentation">
           <section
             className="user-type-modal"
@@ -226,14 +295,67 @@ function App() {
             aria-modal="true"
             aria-labelledby="user-type-title"
           >
-            <h2 id="user-type-title">Select Student Type</h2>
-            <p>Are you a new student or an existing student?</p>
-            <div className="modal-actions">
-              <button type="button" onClick={() => setUserType("new")}>
+            <h2 id="user-type-title">Tell Us About You</h2>
+            <p>
+              Set your student profile to personalize guidance for classes and
+              campus resources.
+            </p>
+
+            <div className="student-type-toggle" aria-label="Student type">
+              <button
+                type="button"
+                className={draftUserType === "new" ? "selected" : ""}
+                onClick={() => setDraftUserType("new")}
+              >
                 New Student
               </button>
-              <button type="button" onClick={() => setUserType("existing")}>
+              <button
+                type="button"
+                className={draftUserType === "existing" ? "selected" : ""}
+                onClick={() => setDraftUserType("existing")}
+              >
                 Existing Student
+              </button>
+            </div>
+
+            <div className="onboarding-form">
+              <label className="onboarding-label" htmlFor="usc-school">
+                Which USC school do you attend?
+              </label>
+              <select
+                id="usc-school"
+                className="onboarding-input"
+                value={draftUscSchool}
+                onChange={(event) => setDraftUscSchool(event.target.value)}
+              >
+                <option value="">Select your school</option>
+                {uscSchools.map((school) => (
+                  <option key={school} value={school}>
+                    {school}
+                  </option>
+                ))}
+              </select>
+
+              <label className="onboarding-label" htmlFor="current-courses">
+                What courses are you taking? (comma-separated)
+              </label>
+              <textarea
+                id="current-courses"
+                className="onboarding-textarea"
+                value={draftCoursesInput}
+                onChange={(event) => setDraftCoursesInput(event.target.value)}
+                rows={3}
+                placeholder="CSCI 570, ISE 544, BUAD 307"
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={saveProfile}
+                disabled={!isDraftProfileComplete}
+              >
+                Continue
               </button>
             </div>
           </section>
@@ -300,14 +422,13 @@ function App() {
         <header className="top-header">
           <div />
           <div className="header-actions">
-            <input
-              type="text"
-              className="course-input"
-              value={courseId}
-              onChange={(event) => setCourseId(event.target.value)}
-              placeholder="Course ID (e.g. CSCI-570)"
-              aria-label="Course ID"
-            />
+            <button
+              type="button"
+              className="profile-btn"
+              onClick={openProfileEditor}
+            >
+              Edit Profile
+            </button>
             <button
               type="button"
               className="refresh-btn"
@@ -419,6 +540,7 @@ function App() {
               id="prompt"
               value={input}
               onChange={handleInputChange}
+              onKeyDown={handlePromptKeyDown}
               disabled={!isAuthenticated}
               rows={3}
               placeholder={

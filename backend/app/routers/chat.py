@@ -22,6 +22,27 @@ SYNC_COOLDOWN_SECONDS = 60 * 15
 FORCE_SYNC_MIN_GAP_SECONDS = 120
 _last_course_sync: dict[str, float] = {}
 
+
+def _get_course_id_from_context(user_context: dict | None) -> str:
+    context = user_context or {}
+    explicit_course_id = str(context.get("course_id") or "").strip()
+    if explicit_course_id:
+        return explicit_course_id
+
+    enrolled_courses = context.get("enrolled_courses")
+    if isinstance(enrolled_courses, list):
+        first_course = next((str(course).strip() for course in enrolled_courses if str(course).strip()), "")
+        if first_course:
+            return first_course
+
+    legacy_courses = context.get("courses")
+    if isinstance(legacy_courses, list):
+        first_course = next((str(course).strip() for course in legacy_courses if str(course).strip()), "")
+        if first_course:
+            return first_course
+
+    return ""
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -51,8 +72,7 @@ def _is_course_query(query_text: str) -> bool:
 
 
 def _maybe_sync_piazza(user_context: dict | None, latest_query: str, force: bool = False) -> bool:
-    context = user_context or {}
-    course_id = str(context.get("course_id") or "").strip()
+    course_id = _get_course_id_from_context(user_context)
     if not course_id:
         return False
     if not _is_course_query(latest_query):
@@ -75,8 +95,7 @@ def _maybe_sync_piazza(user_context: dict | None, latest_query: str, force: bool
 
 
 def _needs_course_sync(user_context: dict | None, latest_query: str, chunks: list[dict]) -> bool:
-    context = user_context or {}
-    course_id = str(context.get("course_id") or "").strip()
+    course_id = _get_course_id_from_context(user_context)
     if not course_id or not _is_course_query(latest_query):
         return False
 

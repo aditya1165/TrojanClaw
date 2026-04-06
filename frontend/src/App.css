@@ -72,22 +72,8 @@
   gap: 10px;
 }
 
-.course-input {
-  width: 210px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid #464646;
-  background: #262626;
-  color: #d8d2c7;
-  padding: 0 10px;
-  font-size: 0.87rem;
-}
-
-.course-input::placeholder {
-  color: #9d978d;
-}
-
 .auth-btn,
+.profile-btn,
 .refresh-btn,
 .stop-btn {
   border-radius: 999px;
@@ -522,6 +508,7 @@
 
 .chip:hover,
 .auth-btn:hover,
+.profile-btn:hover,
 .refresh-btn:hover,
 .modal-actions button:hover,
 .send-btn:hover,
@@ -602,6 +589,62 @@
   gap: 10px;
 }
 
+.student-type-toggle {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-type-toggle button {
+  border: 1px solid var(--line);
+  background: #1d2a3b;
+  color: #dff0ff;
+  border-radius: 10px;
+  min-height: 38px;
+  cursor: pointer;
+}
+
+.student-type-toggle button.selected {
+  border-color: rgba(79, 211, 188, 0.8);
+  background: rgba(79, 211, 188, 0.16);
+}
+
+.onboarding-form {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-label {
+  font-size: 0.86rem;
+  color: #c9d9eb;
+}
+
+.onboarding-input,
+.onboarding-textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #1b2737;
+  color: #e7f0fa;
+  padding: 10px 11px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.onboarding-input:focus,
+.onboarding-textarea:focus {
+  outline: 1px solid rgba(79, 211, 188, 0.6);
+  outline-offset: 1px;
+}
+
+.onboarding-textarea {
+  resize: vertical;
+  min-height: 76px;
+}
+
 .modal-actions button {
   flex: 1;
   border: 1px solid var(--line);
@@ -610,6 +653,11 @@
   border-radius: 10px;
   min-height: 38px;
   cursor: pointer;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .sr-only {
@@ -638,15 +686,12 @@
     margin-bottom: 10px;
   }
 
-  .course-input {
-    width: 150px;
-  }
-
   .header-actions {
     gap: 6px;
   }
 
   .auth-btn,
+  .profile-btn,
   .refresh-btn,
   .send-btn,
   .stop-btn {

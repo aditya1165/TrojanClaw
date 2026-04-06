@@ -5,6 +5,15 @@ def build_system_prompt(retrieved_chunks: list[dict], user_context: dict | None 
 
     student_type = user_context.get("student_type", "student")
     campus = user_context.get("campus", "USC")
+    school = user_context.get("school") or user_context.get("usc_school") or "unspecified school"
+    enrolled_courses = user_context.get("enrolled_courses")
+    if not isinstance(enrolled_courses, list):
+        enrolled_courses = user_context.get("courses")
+    if not isinstance(enrolled_courses, list):
+        enrolled_courses = []
+    courses_text = ", ".join(str(course).strip() for course in enrolled_courses if str(course).strip())
+    if not courses_text:
+        courses_text = "no courses provided"
 
     prompt = (
         "You are TrojanClaw, USC's student helper assistant.\n"
@@ -27,7 +36,10 @@ def build_system_prompt(retrieved_chunks: list[dict], user_context: dict | None 
         "- Always end by asking a relevant, helpful follow-up question.\n\n"
     )
 
-    prompt += f"Student Context: speaking to a {student_type} associated with {campus}.\n\n"
+    prompt += (
+        f"Student Context: speaking to a {student_type} associated with {campus}. "
+        f"School: {school}. Enrolled courses: {courses_text}.\n\n"
+    )
     prompt += "Retrieved USC context from Supabase:\n"
     prompt += "=========================================\n"
 
